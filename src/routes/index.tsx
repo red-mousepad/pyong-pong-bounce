@@ -265,24 +265,33 @@ function Index() {
   };
 
   return (
-    <main
-      ref={fieldRef}
-      className="relative h-[100dvh] w-full overflow-hidden bg-game-bg select-none touch-none"
-    >
-      {/* Stacked HUD below the square */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[56%] flex flex-col items-center gap-6 px-6">
-        <h1 className="sr-only">Bouncing Square — Corner Hit Game</h1>
+    <main className="flex h-[100dvh] w-full flex-col overflow-hidden bg-game-bg select-none touch-none">
+      <h1 className="sr-only">Bouncing Square — Corner Hit Game</h1>
 
+      {/* 1. Playfield */}
+      <div ref={fieldRef} className="relative min-h-0 w-full flex-1 overflow-hidden">
+        <button
+          ref={squareRef}
+          type="button"
+          aria-label={phase === "running" ? "Pause" : "Start"}
+          onPointerDown={onSquare}
+          style={{ width: SIZE, height: SIZE }}
+          className="absolute top-0 left-0 z-10 rounded-[6px] outline-none will-change-transform"
+        />
+      </div>
+
+      {/* 2–4. HUD */}
+      <div className="relative z-20 flex shrink-0 flex-col items-center gap-4 px-6 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex flex-col items-center gap-1">
           <span className="text-[11px] tracking-[0.35em] text-white/35 uppercase">Corner Hits</span>
-          <div className="score-digits text-[18vw] leading-none font-black sm:text-[12vw] md:text-[120px]">
+          <div className="score-digits text-[16vw] leading-none font-black sm:text-[10vw] md:text-[88px]">
             {score}
           </div>
         </div>
 
         {!adsRemoved && (
-          <div className="pointer-events-auto flex w-full max-w-sm flex-col items-center gap-3">
-            <div className="flex h-16 w-full items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 text-xs tracking-[0.3em] text-white/40 uppercase">
+          <div className="flex w-full max-w-sm flex-col items-center gap-3">
+            <div className="flex h-[50px] w-full max-w-[320px] items-center justify-center rounded-xl border border-white/25 bg-white/10 text-xs tracking-[0.3em] text-white/60 uppercase backdrop-blur-sm">
               Ad Banner 320 × 50
             </div>
             <Button
@@ -297,15 +306,6 @@ function Index() {
         )}
       </div>
 
-      {/* Square */}
-      <button
-        ref={squareRef}
-        type="button"
-        aria-label={phase === "running" ? "Pause" : "Start"}
-        onPointerDown={onSquare}
-        style={{ width: SIZE, height: SIZE }}
-        className="absolute top-0 left-0 z-20 rounded-[6px] outline-none will-change-transform"
-      />
 
       {/* Pause overlay */}
       {phase === "paused" && (
