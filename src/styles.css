@@ -142,3 +142,40 @@
     color: var(--color-foreground);
   }
 }
+
+/* ── Bouncing square game tokens ───────────────────────────────── */
+:root {
+  --game-bg: oklch(0 0 0);
+  --game-square: oklch(0.87 0.19 100);
+  --game-score: oklch(1 0 0 / 12%);
+  --gold: oklch(0.86 0.16 88);
+  --gold-deep: oklch(0.72 0.14 78);
+  --shadow-gold:
+    0 0 0 3px var(--gold),
+    0 0 18px 4px oklch(0.86 0.16 88 / 70%),
+    0 0 48px 12px oklch(0.86 0.16 88 / 45%);
+  --shadow-panel: 0 24px 60px -18px oklch(0 0 0 / 80%);
+}
+
+@theme inline {
+  --color-game-bg: var(--game-bg);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
+}
+
+@keyframes gold-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+
+@utility square-gold {
+  box-shadow: var(--shadow-gold);
+  animation: gold-pulse 0.7s ease-in-out infinite;
+}
+
+@utility score-digits {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  color: var(--game-score);
+  text-shadow: 0 0 60px oklch(1 0 0 / 8%);
+}
