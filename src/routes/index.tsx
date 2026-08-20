@@ -311,7 +311,7 @@ function Index() {
       {phase === "paused" && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-[min(90vw,320px)] rounded-2xl border border-white/10 bg-white/5 p-6 text-center shadow-[var(--shadow-panel)]">
-            <p className="text-lg font-semibold text-white">Paused</p>
+            <p className="text-lg font-semibold text-white">PAUSE</p>
             <p className="mt-1 text-sm text-white/50">Score {score}</p>
             <div className="mt-6 flex flex-col gap-2">
               <Button
