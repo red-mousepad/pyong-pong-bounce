@@ -51,7 +51,7 @@ const COLORS = [
 
 function randomColor(prev: string) {
   let c = prev;
-  while (c === prev) c = COLORS[Math.floor(Math.random() * COLORS.length)];
+  while (c === prev) c = COLORS[Math.floor(Math.random() * COLORS.length)] ?? prev;
   return c;
 }
 
