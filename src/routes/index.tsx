@@ -14,16 +14,16 @@ import { playPiyong, playPurchase, playPyong, playTong, resumeAudio } from "@/li
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "뿅! 바운싱 스퀘어 — Corner Hit Game" },
+      { title: "Bouncing Square — Corner Hit Game" },
       {
         name: "description",
         content:
-          "노란 사각형을 눌러 시작하세요. 벽에 튕길 때마다 색이 바뀌고, 정확한 모서리를 맞히면 점수가 올라갑니다.",
+          "Tap the square to launch it. Every wall bounce flips its neon color, and an exact corner hit scores a point with a golden glow.",
       },
-      { property: "og:title", content: "뿅! 바운싱 스퀘어 — Corner Hit Game" },
+      { property: "og:title", content: "Bouncing Square — Corner Hit Game" },
       {
         property: "og:description",
-        content: "Web Audio 효과음과 함께 즐기는 미니멀 바운싱 스퀘어 게임.",
+        content: "A minimal bouncing square game with Web Audio sound effects and corner-hit scoring.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -33,20 +33,22 @@ export const Route = createFileRoute("/")({
 });
 
 const SIZE = 64;
-const SPEED = 330; // px per second
+const SPEED = 210; // px per second — a touch faster than a classic DVD screensaver
 const CORNER_TOL = 6;
+const ASSIST_AFTER_MS = 10 * 60 * 1000; // guarantee a corner hit ~every 10 minutes
 
+// Vivid, high-luminance / high-saturation neon palette
 const COLORS = [
-  "#ffe066",
-  "#ff6b6b",
-  "#4dd4ac",
-  "#5aa9ff",
-  "#c792ea",
-  "#ff9f43",
-  "#7bed9f",
-  "#ff7ab6",
-  "#00d2ff",
-  "#f7f1e3",
+  "#ffe93d",
+  "#ff3b6b",
+  "#00ffc6",
+  "#3da5ff",
+  "#c66bff",
+  "#ff9a1f",
+  "#5cff5c",
+  "#ff5ce0",
+  "#00e5ff",
+  "#faff00",
 ];
 
 function randomColor(prev: string) {
@@ -56,7 +58,6 @@ function randomColor(prev: string) {
 }
 
 function randomVector() {
-  // avoid near-axis-aligned directions
   const base = Math.random() * Math.PI * 2;
   const a = base + (Math.abs(Math.cos(base)) < 0.25 || Math.abs(Math.sin(base)) < 0.25 ? 0.6 : 0);
   return { vx: Math.cos(a) * SPEED, vy: Math.sin(a) * SPEED };
@@ -74,7 +75,16 @@ function Index() {
   const [payOpen, setPayOpen] = useState(false);
   const [paying, setPaying] = useState(false);
 
-  const state = useRef({ x: 0, y: 0, vx: 0, vy: 0, color: "#ffe066", gold: false });
+  const state = useRef({
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    color: "#ffe93d",
+    gold: false,
+    lastCorner: 0,
+    cornerLock: false,
+  });
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(0);
 
@@ -96,11 +106,12 @@ function Index() {
     if (!f) return;
     const s = state.current;
     s.x = (f.clientWidth - SIZE) / 2;
-    s.y = (f.clientHeight - SIZE) / 2;
+    s.y = f.clientHeight * 0.28 - SIZE / 2;
     s.vx = 0;
     s.vy = 0;
-    s.color = "#ffe066";
+    s.color = "#ffe93d";
     s.gold = false;
+    s.cornerLock = false;
     paint();
   }, [paint]);
 
@@ -156,20 +167,36 @@ function Index() {
         hitY = true;
       }
 
-      // near-corner detection when one axis bounces while the other is at the edge
       const nearX = s.x <= CORNER_TOL || s.x >= maxX - CORNER_TOL;
       const nearY = s.y <= CORNER_TOL || s.y >= maxY - CORNER_TOL;
       const corner = (hitX || hitY) && nearX && nearY;
 
-      if (corner) {
+      if (corner && !s.cornerLock) {
+        s.cornerLock = true;
         s.gold = true;
         s.color = randomColor(s.color);
+        s.lastCorner = now;
         setScore((v) => v + 1);
         playPiyong();
-      } else if (hitX || hitY) {
+      } else if ((hitX || hitY) && !corner) {
+        s.cornerLock = false;
         s.gold = false;
         s.color = randomColor(s.color);
         playTong();
+
+        // Invisible micro-trajectory assist: if no corner hit for a long time,
+        // aim the square straight at the nearest reachable corner.
+        if (now - s.lastCorner > ASSIST_AFTER_MS && maxX > 0 && maxY > 0) {
+          const tx = s.vx >= 0 ? maxX : 0;
+          const ty = s.vy >= 0 ? maxY : 0;
+          const dx = tx - s.x;
+          const dy = ty - s.y;
+          const len = Math.hypot(dx, dy);
+          if (len > 1) {
+            s.vx = (dx / len) * SPEED;
+            s.vy = (dy / len) * SPEED;
+          }
+        }
       }
 
       paint();
@@ -213,6 +240,7 @@ function Index() {
       const v = randomVector();
       state.current.vx = v.vx;
       state.current.vy = v.vy;
+      state.current.lastCorner = performance.now();
       playPyong();
       setPhase("running");
     } else if (phase === "running") {
@@ -241,11 +269,15 @@ function Index() {
       ref={fieldRef}
       className="relative h-[100dvh] w-full overflow-hidden bg-game-bg select-none touch-none"
     >
-      {/* Center HUD */}
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-5 px-6">
-        <h1 className="sr-only">뿅! 바운싱 스퀘어 — 모서리 히트 게임</h1>
-        <div className="score-digits text-[22vw] leading-none font-black sm:text-[16vw] md:text-[180px]">
-          {score}
+      {/* Stacked HUD below the square */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[56%] flex flex-col items-center gap-6 px-6">
+        <h1 className="sr-only">Bouncing Square — Corner Hit Game</h1>
+
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-[11px] tracking-[0.35em] text-white/35 uppercase">Corner Hits</span>
+          <div className="score-digits text-[18vw] leading-none font-black sm:text-[12vw] md:text-[120px]">
+            {score}
+          </div>
         </div>
 
         {!adsRemoved && (
@@ -259,13 +291,9 @@ function Index() {
               className="border-gold/50 bg-transparent text-gold hover:bg-gold/10 hover:text-gold"
               onClick={() => setPayOpen(true)}
             >
-              광고 없애기 ($0.99)
+              Remove Ads
             </Button>
           </div>
-        )}
-
-        {phase === "idle" && (
-          <p className="text-sm text-white/35">노란 사각형을 눌러 시작하세요</p>
         )}
       </div>
 
@@ -273,18 +301,18 @@ function Index() {
       <button
         ref={squareRef}
         type="button"
-        aria-label={phase === "running" ? "일시정지" : "시작"}
+        aria-label={phase === "running" ? "Pause" : "Start"}
         onPointerDown={onSquare}
         style={{ width: SIZE, height: SIZE }}
-        className="absolute top-0 left-0 rounded-[6px] outline-none will-change-transform"
+        className="absolute top-0 left-0 z-20 rounded-[6px] outline-none will-change-transform"
       />
 
       {/* Pause overlay */}
       {phase === "paused" && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-[min(90vw,320px)] rounded-2xl border border-white/10 bg-white/5 p-6 text-center shadow-[var(--shadow-panel)]">
-            <p className="text-lg font-semibold text-white">일시정지</p>
-            <p className="mt-1 text-sm text-white/50">점수 {score}</p>
+            <p className="text-lg font-semibold text-white">Paused</p>
+            <p className="mt-1 text-sm text-white/50">Score {score}</p>
             <div className="mt-6 flex flex-col gap-2">
               <Button
                 onClick={() => {
@@ -292,10 +320,10 @@ function Index() {
                   setPhase("running");
                 }}
               >
-                계속
+                Resume
               </Button>
               <Button variant="secondary" onClick={reset}>
-                리셋
+                Reset
               </Button>
             </div>
           </div>
@@ -306,20 +334,20 @@ function Index() {
       <Dialog open={payOpen} onOpenChange={(o) => !paying && setPayOpen(o)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>광고 제거</DialogTitle>
+            <DialogTitle>Remove Ads</DialogTitle>
             <DialogDescription>
-              한 번 결제로 배너 광고가 영구히 사라집니다.
+              A one-time purchase that permanently removes the banner ad.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-xl border border-border p-4">
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-muted-foreground">Remove Ads (일회성)</span>
+              <span className="text-sm text-muted-foreground">Remove Ads (one-time)</span>
               <span className="text-2xl font-bold">$0.99</span>
             </div>
           </div>
           <DialogFooter>
             <Button className="w-full" onClick={buy} disabled={paying}>
-              {paying ? "결제 처리 중…" : "$0.99 결제하기"}
+              {paying ? "Processing…" : "Pay $0.99"}
             </Button>
           </DialogFooter>
         </DialogContent>
