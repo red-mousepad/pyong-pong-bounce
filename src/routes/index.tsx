@@ -82,16 +82,10 @@ function Index() {
     vy: 0,
     color: "#ffe93d",
     gold: false,
-    lastCorner: 0,
-    cornerLock: false,
-    targetWait: nextCornerWait(),
-    nearMissArmed: false,
   });
 
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(0);
-  const pausedAtRef = useRef(0);
-
 
   const paint = useCallback(() => {
     const el = squareRef.current;
@@ -102,14 +96,6 @@ function Index() {
     el.classList.toggle("square-gold", s.gold);
   }, []);
 
-  const flashNearMiss = useCallback(() => {
-    const el = squareRef.current;
-    if (!el) return;
-    el.classList.remove("square-near");
-    void el.offsetWidth;
-    el.classList.add("square-near");
-    window.setTimeout(() => el.classList.remove("square-near"), 500);
-  }, []);
 
 
 
