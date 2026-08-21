@@ -131,7 +131,8 @@ function Index() {
     if (!f) return;
     const s = state.current;
     s.x = (f.clientWidth - SIZE) / 2;
-    s.y = f.clientHeight * 0.28 - SIZE / 2;
+    // Position the square directly above the "Corner Hits" counter label
+    s.y = f.clientHeight * 0.56 - SIZE - 8;
     s.vx = 0;
     s.vy = 0;
     s.color = "#ffe93d";
