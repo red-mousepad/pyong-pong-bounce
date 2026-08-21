@@ -114,6 +114,17 @@ function Index() {
     el.classList.toggle("square-gold", s.gold);
   }, []);
 
+  const flashNearMiss = useCallback(() => {
+    const el = squareRef.current;
+    if (!el) return;
+    el.classList.remove("square-near");
+    void el.offsetWidth;
+    el.classList.add("square-near");
+    window.setTimeout(() => el.classList.remove("square-near"), 500);
+  }, []);
+
+
+
   const center = useCallback(() => {
     const f = fieldRef.current;
     if (!f) return;
