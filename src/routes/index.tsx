@@ -145,87 +145,50 @@ function Index() {
       s.x += s.vx * dt;
       s.y += s.vy * dt;
 
+      // Pure reflection: angle of incidence = angle of reflection.
       let hitX = false;
       let hitY = false;
       if (s.x <= 0) {
         s.x = 0;
-        s.vx = Math.abs(s.vx);
+        s.vx = -s.vx;
         hitX = true;
       } else if (s.x >= maxX) {
         s.x = maxX;
-        s.vx = -Math.abs(s.vx);
+        s.vx = -s.vx;
         hitX = true;
       }
       if (s.y <= 0) {
         s.y = 0;
-        s.vy = Math.abs(s.vy);
+        s.vy = -s.vy;
         hitY = true;
       } else if (s.y >= maxY) {
         s.y = maxY;
-        s.vy = -Math.abs(s.vy);
+        s.vy = -s.vy;
         hitY = true;
       }
 
-      const nearX = s.x <= CORNER_TOL || s.x >= maxX - CORNER_TOL;
-      const nearY = s.y <= CORNER_TOL || s.y >= maxY - CORNER_TOL;
-      const corner = (hitX || hitY) && nearX && nearY;
+      if (hitX || hitY) {
+        const nearX = s.x <= CORNER_TOL || s.x >= maxX - CORNER_TOL;
+        const nearY = s.y <= CORNER_TOL || s.y >= maxY - CORNER_TOL;
+        const corner = nearX && nearY;
 
-      if (corner && !s.cornerLock) {
-        s.cornerLock = true;
-        s.gold = true;
-        s.color = randomColor(s.color);
-        s.lastCorner = now;
-        s.targetWait = nextCornerWait();
-        s.nearMissArmed = false;
-        setScore((v) => v + 1);
-        playPiyong();
-      } else if ((hitX || hitY) && !corner) {
-        s.cornerLock = false;
-        s.gold = false;
-        s.color = randomColor(s.color);
-        playTong();
-
-        const elapsed = now - s.lastCorner;
-        const wasNearMiss = s.nearMissArmed && (nearX || nearY);
-        s.nearMissArmed = false;
-        if (wasNearMiss) flashNearMiss();
-
-        // Invisible trajectory assist: steer toward the nearest reachable corner
-        // once the pity timer or this round's randomized target is reached.
-        const due = elapsed > Math.min(s.targetWait, PITY_AFTER_MS);
-        if (due && maxX > 0 && maxY > 0) {
-          const tx = s.vx >= 0 ? maxX : 0;
-          const ty = s.vy >= 0 ? maxY : 0;
-
-          // Hard guarantee: past the max wait, aim dead-on. Past the round's
-          // target, aim dead-on too. Before that, nudge gently (pity phase).
-          const forced = elapsed > MAX_WAIT_MS || elapsed > s.targetWait;
-          const nearMiss = !forced && Math.random() < NEAR_MISS_CHANCE;
-
-          let aimX = tx;
-          let aimY = ty;
-          if (nearMiss) {
-            // Aim a few pixels off the corner for an "almost!" moment.
-            const off = CORNER_TOL + 4 + Math.random() * 10;
-            if (Math.random() < 0.5) aimY += ty === 0 ? off : -off;
-            else aimX += tx === 0 ? off : -off;
-            s.nearMissArmed = true;
-          }
-
-          const dx = aimX - s.x;
-          const dy = aimY - s.y;
-          const len = Math.hypot(dx, dy);
-          if (len > 1) {
-            const ux = (dx / len) * SPEED;
-            const uy = (dy / len) * SPEED;
-            // Micro-angle adjustment: blend gently unless forced.
-            const k = forced ? 1 : nearMiss ? 0.85 : 0.35;
-            const bx = s.vx + (ux - s.vx) * k;
-            const by = s.vy + (uy - s.vy) * k;
-            const bl = Math.hypot(bx, by) || 1;
-            s.vx = (bx / bl) * SPEED;
-            s.vy = (by / bl) * SPEED;
-          }
+        if (corner) {
+          // Both axes reverse; clamp just inside the bounds so the square
+          // leaves the corner cleanly instead of re-triggering next frame.
+          if (!hitX) s.vx = -s.vx;
+          if (!hitY) s.vy = -s.vy;
+          s.x = s.x <= maxX / 2 ? Math.min(CORNER_TOL + 1, maxX) : Math.max(maxX - CORNER_TOL - 1, 0);
+          s.y = s.y <= maxY / 2 ? Math.min(CORNER_TOL + 1, maxY) : Math.max(maxY - CORNER_TOL - 1, 0);
+          s.vx = s.x <= maxX / 2 ? Math.abs(s.vx) : -Math.abs(s.vx);
+          s.vy = s.y <= maxY / 2 ? Math.abs(s.vy) : -Math.abs(s.vy);
+          s.gold = true;
+          s.color = randomColor(s.color);
+          setScore((v) => v + 1);
+          playPiyong();
+        } else {
+          s.gold = false;
+          s.color = randomColor(s.color);
+          playTong();
         }
       }
 
@@ -233,18 +196,11 @@ function Index() {
       rafRef.current = requestAnimationFrame(step);
     };
 
-    // Pausing shouldn't burn the corner timer.
-    if (pausedAtRef.current) {
-      state.current.lastCorner += performance.now() - pausedAtRef.current;
-      pausedAtRef.current = 0;
-    }
-
     rafRef.current = requestAnimationFrame(step);
     return () => {
-      pausedAtRef.current = performance.now();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [phase, paint, flashNearMiss]);
+  }, [phase, paint]);
 
 
   // Screen wake lock while playing
