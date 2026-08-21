@@ -189,6 +189,8 @@ function Index() {
         s.gold = true;
         s.color = randomColor(s.color);
         s.lastCorner = now;
+        s.targetWait = nextCornerWait();
+        s.nearMissArmed = false;
         setScore((v) => v + 1);
         playPiyong();
       } else if ((hitX || hitY) && !corner) {
@@ -197,17 +199,46 @@ function Index() {
         s.color = randomColor(s.color);
         playTong();
 
-        // Invisible micro-trajectory assist: if no corner hit for a long time,
-        // aim the square straight at the nearest reachable corner.
-        if (now - s.lastCorner > ASSIST_AFTER_MS && maxX > 0 && maxY > 0) {
+        const elapsed = now - s.lastCorner;
+        const wasNearMiss = s.nearMissArmed && (nearX || nearY);
+        s.nearMissArmed = false;
+        if (wasNearMiss) flashNearMiss();
+
+        // Invisible trajectory assist: steer toward the nearest reachable corner
+        // once the pity timer or this round's randomized target is reached.
+        const due = elapsed > Math.min(s.targetWait, PITY_AFTER_MS);
+        if (due && maxX > 0 && maxY > 0) {
           const tx = s.vx >= 0 ? maxX : 0;
           const ty = s.vy >= 0 ? maxY : 0;
-          const dx = tx - s.x;
-          const dy = ty - s.y;
+
+          // Hard guarantee: past the max wait, aim dead-on. Past the round's
+          // target, aim dead-on too. Before that, nudge gently (pity phase).
+          const forced = elapsed > MAX_WAIT_MS || elapsed > s.targetWait;
+          const nearMiss = !forced && Math.random() < NEAR_MISS_CHANCE;
+
+          let aimX = tx;
+          let aimY = ty;
+          if (nearMiss) {
+            // Aim a few pixels off the corner for an "almost!" moment.
+            const off = CORNER_TOL + 4 + Math.random() * 10;
+            if (Math.random() < 0.5) aimY += ty === 0 ? off : -off;
+            else aimX += tx === 0 ? off : -off;
+            s.nearMissArmed = true;
+          }
+
+          const dx = aimX - s.x;
+          const dy = aimY - s.y;
           const len = Math.hypot(dx, dy);
           if (len > 1) {
-            s.vx = (dx / len) * SPEED;
-            s.vy = (dy / len) * SPEED;
+            const ux = (dx / len) * SPEED;
+            const uy = (dy / len) * SPEED;
+            // Micro-angle adjustment: blend gently unless forced.
+            const k = forced ? 1 : nearMiss ? 0.85 : 0.35;
+            const bx = s.vx + (ux - s.vx) * k;
+            const by = s.vy + (uy - s.vy) * k;
+            const bl = Math.hypot(bx, by) || 1;
+            s.vx = (bx / bl) * SPEED;
+            s.vy = (by / bl) * SPEED;
           }
         }
       }
@@ -215,6 +246,7 @@ function Index() {
       paint();
       rafRef.current = requestAnimationFrame(step);
     };
+
 
     rafRef.current = requestAnimationFrame(step);
     return () => {
