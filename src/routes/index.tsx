@@ -35,7 +35,17 @@ export const Route = createFileRoute("/")({
 const SIZE = 64;
 const SPEED = 210; // px per second — a touch faster than a classic DVD screensaver
 const CORNER_TOL = 6;
-const ASSIST_AFTER_MS = 10 * 60 * 1000; // guarantee a corner hit ~every 10 minutes
+const MIN_WAIT_MS = 30 * 1000; // rare "jackpot" fast corner
+const MAX_WAIT_MS = 7 * 60 * 1000; // hard guarantee — a corner always lands by here
+const PITY_AFTER_MS = 4 * 60 * 1000; // invisible micro-steering kicks in
+const NEAR_MISS_CHANCE = 0.35;
+
+// Skewed draw: most targets land around 3–4 minutes, rarely near 30s or 7min.
+function nextCornerWait() {
+  const t = Math.pow(Math.random(), 1.35);
+  return MIN_WAIT_MS + (MAX_WAIT_MS - MIN_WAIT_MS) * t;
+}
+
 
 // Vivid, high-luminance / high-saturation neon palette
 const COLORS = [
@@ -84,9 +94,13 @@ function Index() {
     gold: false,
     lastCorner: 0,
     cornerLock: false,
+    targetWait: nextCornerWait(),
+    nearMissArmed: false,
   });
+
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(0);
+  const pausedAtRef = useRef(0);
 
   useEffect(() => {
     if (localStorage.getItem("ads-removed") === "1") setAdsRemoved(true);
@@ -100,6 +114,17 @@ function Index() {
     el.style.backgroundColor = s.color;
     el.classList.toggle("square-gold", s.gold);
   }, []);
+
+  const flashNearMiss = useCallback(() => {
+    const el = squareRef.current;
+    if (!el) return;
+    el.classList.remove("square-near");
+    void el.offsetWidth;
+    el.classList.add("square-near");
+    window.setTimeout(() => el.classList.remove("square-near"), 500);
+  }, []);
+
+
 
   const center = useCallback(() => {
     const f = fieldRef.current;
@@ -176,6 +201,8 @@ function Index() {
         s.gold = true;
         s.color = randomColor(s.color);
         s.lastCorner = now;
+        s.targetWait = nextCornerWait();
+        s.nearMissArmed = false;
         setScore((v) => v + 1);
         playPiyong();
       } else if ((hitX || hitY) && !corner) {
@@ -184,17 +211,46 @@ function Index() {
         s.color = randomColor(s.color);
         playTong();
 
-        // Invisible micro-trajectory assist: if no corner hit for a long time,
-        // aim the square straight at the nearest reachable corner.
-        if (now - s.lastCorner > ASSIST_AFTER_MS && maxX > 0 && maxY > 0) {
+        const elapsed = now - s.lastCorner;
+        const wasNearMiss = s.nearMissArmed && (nearX || nearY);
+        s.nearMissArmed = false;
+        if (wasNearMiss) flashNearMiss();
+
+        // Invisible trajectory assist: steer toward the nearest reachable corner
+        // once the pity timer or this round's randomized target is reached.
+        const due = elapsed > Math.min(s.targetWait, PITY_AFTER_MS);
+        if (due && maxX > 0 && maxY > 0) {
           const tx = s.vx >= 0 ? maxX : 0;
           const ty = s.vy >= 0 ? maxY : 0;
-          const dx = tx - s.x;
-          const dy = ty - s.y;
+
+          // Hard guarantee: past the max wait, aim dead-on. Past the round's
+          // target, aim dead-on too. Before that, nudge gently (pity phase).
+          const forced = elapsed > MAX_WAIT_MS || elapsed > s.targetWait;
+          const nearMiss = !forced && Math.random() < NEAR_MISS_CHANCE;
+
+          let aimX = tx;
+          let aimY = ty;
+          if (nearMiss) {
+            // Aim a few pixels off the corner for an "almost!" moment.
+            const off = CORNER_TOL + 4 + Math.random() * 10;
+            if (Math.random() < 0.5) aimY += ty === 0 ? off : -off;
+            else aimX += tx === 0 ? off : -off;
+            s.nearMissArmed = true;
+          }
+
+          const dx = aimX - s.x;
+          const dy = aimY - s.y;
           const len = Math.hypot(dx, dy);
           if (len > 1) {
-            s.vx = (dx / len) * SPEED;
-            s.vy = (dy / len) * SPEED;
+            const ux = (dx / len) * SPEED;
+            const uy = (dy / len) * SPEED;
+            // Micro-angle adjustment: blend gently unless forced.
+            const k = forced ? 1 : nearMiss ? 0.85 : 0.35;
+            const bx = s.vx + (ux - s.vx) * k;
+            const by = s.vy + (uy - s.vy) * k;
+            const bl = Math.hypot(bx, by) || 1;
+            s.vx = (bx / bl) * SPEED;
+            s.vy = (by / bl) * SPEED;
           }
         }
       }
@@ -203,11 +259,19 @@ function Index() {
       rafRef.current = requestAnimationFrame(step);
     };
 
+    // Pausing shouldn't burn the corner timer.
+    if (pausedAtRef.current) {
+      state.current.lastCorner += performance.now() - pausedAtRef.current;
+      pausedAtRef.current = 0;
+    }
+
     rafRef.current = requestAnimationFrame(step);
     return () => {
+      pausedAtRef.current = performance.now();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [phase, paint]);
+  }, [phase, paint, flashNearMiss]);
+
 
   // Screen wake lock while playing
   useEffect(() => {
@@ -241,6 +305,8 @@ function Index() {
       state.current.vx = v.vx;
       state.current.vy = v.vy;
       state.current.lastCorner = performance.now();
+      state.current.targetWait = nextCornerWait();
+      state.current.nearMissArmed = false;
       playPyong();
       setPhase("running");
     } else if (phase === "running") {

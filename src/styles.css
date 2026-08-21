@@ -173,6 +173,21 @@
   animation: gold-pulse 0.7s ease-in-out infinite;
 }
 
+@keyframes near-flash {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.9);
+  }
+}
+
+@utility square-near {
+  animation: near-flash 0.22s ease-in-out 2;
+}
+
+
 @utility score-digits {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.04em;
