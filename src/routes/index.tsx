@@ -59,8 +59,7 @@ function randomColor(prev: string) {
 }
 
 function randomVector() {
-  const base = Math.random() * Math.PI * 2;
-  const a = base + (Math.abs(Math.cos(base)) < 0.25 || Math.abs(Math.sin(base)) < 0.25 ? 0.6 : 0);
+  const a = Math.random() * Math.PI * 2;
   return { vx: Math.cos(a) * SPEED, vy: Math.sin(a) * SPEED };
 }
 
