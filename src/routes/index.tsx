@@ -94,7 +94,10 @@ function Index() {
     gold: false,
     lastCorner: 0,
     cornerLock: false,
+    targetWait: nextCornerWait(),
+    nearMissArmed: false,
   });
+
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(0);
 
