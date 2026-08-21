@@ -35,16 +35,7 @@ export const Route = createFileRoute("/")({
 const SIZE = 64;
 const SPEED = 210; // px per second — a touch faster than a classic DVD screensaver
 const CORNER_TOL = 6;
-const MIN_WAIT_MS = 30 * 1000; // rare "jackpot" fast corner
-const MAX_WAIT_MS = 7 * 60 * 1000; // hard guarantee — a corner always lands by here
-const PITY_AFTER_MS = 4 * 60 * 1000; // invisible micro-steering kicks in
-const NEAR_MISS_CHANCE = 0.35;
 
-// Skewed draw: most targets land around 3–4 minutes, rarely near 30s or 7min.
-function nextCornerWait() {
-  const t = Math.pow(Math.random(), 1.35);
-  return MIN_WAIT_MS + (MAX_WAIT_MS - MIN_WAIT_MS) * t;
-}
 
 
 // Vivid, high-luminance / high-saturation neon palette
