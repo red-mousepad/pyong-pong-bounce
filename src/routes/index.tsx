@@ -102,9 +102,6 @@ function Index() {
   const lastRef = useRef(0);
   const pausedAtRef = useRef(0);
 
-  useEffect(() => {
-    if (localStorage.getItem("ads-removed") === "1") setAdsRemoved(true);
-  }, []);
 
   const paint = useCallback(() => {
     const el = squareRef.current;
@@ -324,7 +321,6 @@ function Index() {
   const buy = async () => {
     setPaying(true);
     await new Promise((r) => setTimeout(r, 1200));
-    localStorage.setItem("ads-removed", "1");
     setAdsRemoved(true);
     setPaying(false);
     setPayOpen(false);
