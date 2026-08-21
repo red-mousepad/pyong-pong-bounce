@@ -258,12 +258,19 @@ function Index() {
       rafRef.current = requestAnimationFrame(step);
     };
 
+    // Pausing shouldn't burn the corner timer.
+    if (pausedAtRef.current) {
+      state.current.lastCorner += performance.now() - pausedAtRef.current;
+      pausedAtRef.current = 0;
+    }
 
     rafRef.current = requestAnimationFrame(step);
     return () => {
+      pausedAtRef.current = performance.now();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [phase, paint, flashNearMiss]);
+
 
   // Screen wake lock while playing
   useEffect(() => {
