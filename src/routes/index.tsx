@@ -100,6 +100,7 @@ function Index() {
 
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(0);
+  const pausedAtRef = useRef(0);
 
   useEffect(() => {
     if (localStorage.getItem("ads-removed") === "1") setAdsRemoved(true);
