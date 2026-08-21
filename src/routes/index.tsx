@@ -110,7 +110,7 @@ function Index() {
     s.vy = 0;
     s.color = "#ffe93d";
     s.gold = false;
-    s.cornerLock = false;
+    
     paint();
   }, [paint]);
 
@@ -234,9 +234,6 @@ function Index() {
       const v = randomVector();
       state.current.vx = v.vx;
       state.current.vy = v.vy;
-      state.current.lastCorner = performance.now();
-      state.current.targetWait = nextCornerWait();
-      state.current.nearMissArmed = false;
       playPyong();
       setPhase("running");
     } else if (phase === "running") {
