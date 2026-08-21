@@ -263,7 +263,7 @@ function Index() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [phase, paint]);
+  }, [phase, paint, flashNearMiss]);
 
   // Screen wake lock while playing
   useEffect(() => {
@@ -297,6 +297,8 @@ function Index() {
       state.current.vx = v.vx;
       state.current.vy = v.vy;
       state.current.lastCorner = performance.now();
+      state.current.targetWait = nextCornerWait();
+      state.current.nearMissArmed = false;
       playPyong();
       setPhase("running");
     } else if (phase === "running") {
